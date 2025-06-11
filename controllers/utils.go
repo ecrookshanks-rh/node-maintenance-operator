@@ -1,6 +1,9 @@
 package controllers
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
 
 // ContainsString checks if the string array contains the given string.
 func ContainsString(slice []string, s string) bool {
@@ -23,10 +26,10 @@ func RemoveString(slice []string, s string) (result []string) {
 	return result
 }
 
-// GetPodNameList returns a list of pod names from a pod list
+// GetPodNameList returns a list of pod identifiers in the form "namespace/name".
 func GetPodNameList(pods []corev1.Pod) (result []string) {
 	for _, pod := range pods {
-		result = append(result, pod.ObjectMeta.Name)
+		result = append(result, client.ObjectKeyFromObject(&pod).String())
 	}
 	return result
 }
