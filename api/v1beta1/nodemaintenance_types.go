@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -73,6 +74,9 @@ type NodeMaintenanceStatus struct {
 	// PendingPods is a list of pending pods for eviction
 	//+operator-sdk:csv:customresourcedefinitions:type=status
 	PendingPods []string `json:"pendingPods,omitempty"`
+	// PendingPodsRefs is a list of refs of pending pods for eviction
+	//+operator-sdk:csv:customresourcedefinitions:type=status
+	PendingPodsRefs []corev1.ObjectReference `json:"pendingPodsRefs,omitempty"`
 	// TotalPods is the total number of all pods on the node from the start
 	//+operator-sdk:csv:customresourcedefinitions:type=status
 	TotalPods int `json:"totalpods,omitempty"`
