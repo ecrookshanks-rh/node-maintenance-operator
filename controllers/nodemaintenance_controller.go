@@ -245,6 +245,7 @@ func (r *NodeMaintenanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	nm.Status.Phase = v1beta1.MaintenanceSucceeded
 	nm.Status.DrainProgress = 100
 	nm.Status.PendingPods = nil
+	nm.Status.PendingPodsRefs = nil
 	err = r.Client.Status().Update(ctx, nm)
 	if err != nil {
 		r.logger.Error(err, "Failed to update NodeMaintenance with \"Succeeded\" status")

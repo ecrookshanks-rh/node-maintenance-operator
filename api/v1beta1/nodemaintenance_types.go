@@ -17,7 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -54,6 +53,17 @@ type NodeMaintenanceSpec struct {
 	Reason string `json:"reason,omitempty"`
 }
 
+type PodReference struct {
+	// Namespace of the referent pod.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+	// +optional
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	// Name of the referent pod.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+	// +optional
+	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+}
+
 // NodeMaintenanceStatus defines the observed state of NodeMaintenance
 type NodeMaintenanceStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
@@ -76,7 +86,7 @@ type NodeMaintenanceStatus struct {
 	PendingPods []string `json:"pendingPods,omitempty"`
 	// PendingPodsRefs is a list of refs of pending pods for eviction
 	//+operator-sdk:csv:customresourcedefinitions:type=status
-	PendingPodsRefs []corev1.ObjectReference `json:"pendingPodsRefs,omitempty"`
+	PendingPodsRefs []PodReference `json:"pendingPodsRefs,omitempty"`
 	// TotalPods is the total number of all pods on the node from the start
 	//+operator-sdk:csv:customresourcedefinitions:type=status
 	TotalPods int `json:"totalpods,omitempty"`

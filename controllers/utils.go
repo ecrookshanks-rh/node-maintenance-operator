@@ -2,6 +2,8 @@ package controllers
 
 import (
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/medik8s/node-maintenance-operator/api/v1beta1"
 )
 
 // ContainsString checks if the string array contains the given string.
@@ -34,14 +36,11 @@ func GetPodNameList(pods []corev1.Pod) (result []string) {
 }
 
 // GetPodRefList returns a list of pod references.
-func GetPodRefList(pods []corev1.Pod) (result []corev1.ObjectReference) {
+func GetPodRefList(pods []corev1.Pod) (result []v1beta1.PodReference) {
 	for _, pod := range pods {
-		result = append(result, corev1.ObjectReference{
-			Kind:       pod.Kind,
-			APIVersion: pod.APIVersion,
-			Namespace:  pod.Namespace,
-			Name:       pod.Name,
-			UID:        pod.UID,
+		result = append(result, v1beta1.PodReference{
+			Namespace: pod.Namespace,
+			Name:      pod.Name,
 		})
 	}
 	return result
