@@ -54,6 +54,9 @@ spec:
       - description: PendingPods is a list of pending pods for eviction
         displayName: Pending Pods
         path: pendingPods
+      - description: PendingPodsRefs is a list of refs of pending pods for eviction
+        displayName: Pending Pods Refs
+        path: pendingPodsRefs
       - description: Phase is the represtation of the maintenance progress (Running,Succeeded,Failed)
         displayName: Phase
         path: phase
