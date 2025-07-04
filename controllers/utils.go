@@ -30,7 +30,7 @@ func RemoveString(slice []string, s string) (result []string) {
 // GetPodNameList returns a list of pod names from a pod list
 func GetPodNameList(pods []corev1.Pod) (result []string) {
 	for _, pod := range pods {
-		result = append(result, pod.Name)
+		result = append(result, pod.ObjectMeta.Name)
 	}
 	return result
 }
