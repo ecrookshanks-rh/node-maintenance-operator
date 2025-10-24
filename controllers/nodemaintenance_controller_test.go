@@ -72,6 +72,7 @@ var _ = Describe("Node Maintenance", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(nm.Status.Phase).To(Equal(v1beta1.MaintenanceRunning))
 					Expect(len(nm.Status.PendingPods)).To(Equal(2))
+					Expect(len(nm.Status.PendingPodsRefs)).To(Equal(2))
 					Expect(nm.Status.EvictionPods).To(Equal(2))
 					Expect(nm.Status.TotalPods).To(Equal(2))
 					Expect(nm.Status.DrainProgress).To(Equal(0))
@@ -109,6 +110,7 @@ var _ = Describe("Node Maintenance", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(nmCopy.Status.Phase).To(Equal(v1beta1.MaintenanceFailed))
 					Expect(len(nmCopy.Status.PendingPods)).To(Equal(0))
+					Expect(len(nmCopy.Status.PendingPodsRefs)).To(Equal(0))
 					Expect(nmCopy.Status.EvictionPods).To(Equal(0))
 					Expect(nmCopy.Status.TotalPods).To(Equal(0))
 					Expect(nmCopy.Status.DrainProgress).To(Equal(0))
@@ -201,6 +203,7 @@ var _ = Describe("Node Maintenance", func() {
 
 				Expect(maintenance.Status.Phase).To(Equal(v1beta1.MaintenanceSucceeded))
 				Expect(len(maintenance.Status.PendingPods)).To(Equal(0))
+				Expect(len(maintenance.Status.PendingPodsRefs)).To(Equal(0))
 				Expect(maintenance.Status.EvictionPods).To(Equal(2))
 				Expect(maintenance.Status.TotalPods).To(Equal(2))
 				Expect(maintenance.Status.DrainProgress).To(Equal(100))
@@ -244,6 +247,7 @@ var _ = Describe("Node Maintenance", func() {
 				Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(nm), maintenance)).To(Succeed())
 
 				Expect(len(maintenance.Status.PendingPods)).To(Equal(0))
+				Expect(len(maintenance.Status.PendingPodsRefs)).To(Equal(0))
 				Expect(maintenance.Status.EvictionPods).To(Equal(0))
 				Expect(maintenance.Status.TotalPods).To(Equal(0))
 				Expect(maintenance.Status.DrainProgress).To(Equal(0))

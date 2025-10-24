@@ -245,6 +245,7 @@ func (r *NodeMaintenanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	nm.Status.Phase = v1beta1.MaintenanceSucceeded
 	nm.Status.DrainProgress = 100
 	nm.Status.PendingPods = nil
+	nm.Status.PendingPodsRefs = nil
 	err = r.Client.Status().Update(ctx, nm)
 	if err != nil {
 		r.logger.Error(err, "Failed to update NodeMaintenance with \"Succeeded\" status")
@@ -432,6 +433,7 @@ func initMaintenanceStatus(ctx context.Context, nm *v1beta1.NodeMaintenance, dra
 		}
 		if pendingList != nil {
 			nm.Status.PendingPods = GetPodNameList(pendingList.Pods())
+			nm.Status.PendingPodsRefs = GetPodRefList(pendingList.Pods())
 		}
 		nm.Status.EvictionPods = len(nm.Status.PendingPods)
 
@@ -457,6 +459,7 @@ func (r *NodeMaintenanceReconciler) onReconcileErrorWithRequeue(ctx context.Cont
 		pendingList, _ := drainer.GetPodsForDeletion(nm.Spec.NodeName)
 		if pendingList != nil {
 			nm.Status.PendingPods = GetPodNameList(pendingList.Pods())
+			nm.Status.PendingPodsRefs = GetPodRefList(pendingList.Pods())
 			if nm.Status.EvictionPods != 0 {
 				nm.Status.DrainProgress = (nm.Status.EvictionPods - len(nm.Status.PendingPods)) * 100 / nm.Status.EvictionPods
 			}

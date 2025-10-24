@@ -78,6 +78,23 @@ spec:
                 items:
                   type: string
                 type: array
+              pendingPodsRefs:
+                description: PendingPodsRefs is a list of refs of pending pods for
+                  eviction
+                items:
+                  properties:
+                    name:
+                      description: |-
+                        Name of the referent pod.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      type: string
+                    namespace:
+                      description: |-
+                        Namespace of the referent pod.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+                      type: string
+                  type: object
+                type: array
               phase:
                 description: Phase is the represtation of the maintenance progress
                   (Running,Succeeded,Failed)
