@@ -457,8 +457,8 @@ build-tools: ## Download & build all the tools locally if necessary.
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
 catalog-build: opm ## Build a file-based catalog image.
-	# Remove the catalog directory and Dockerfile
-	-rm -r ${CATALOG_DIR} ${CATALOG_DOCKERFILE}
+	# Remove the catalog directory and Dockerfile if they exist
+	-rm -rf ${CATALOG_DIR} ${CATALOG_DOCKERFILE}
 	@mkdir -p ${CATALOG_DIR}
 	$(OPM) generate dockerfile ${CATALOG_DIR}
 	$(OPM) init ${OPERATOR_NAME} \
@@ -472,7 +472,7 @@ catalog-build: opm ## Build a file-based catalog image.
 	$(OPM) validate ${CATALOG_DIR}
 	docker build . -f ${CATALOG_DOCKERFILE} -t ${CATALOG_IMG}
 	# Clean up the catalog directory and Dockerfile
-	rm -r ${CATALOG_DIR} ${CATALOG_DOCKERFILE}
+	-rm -rf ${CATALOG_DIR} ${CATALOG_DOCKERFILE}
 
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
