@@ -498,7 +498,7 @@ container-build: check ## Build containers
 	make docker-build bundle-build
 
 .PHONY: bundle-build-community
-bundle-build-community: bundle-community ## Run bundle community changes in CSV, and then build the bundle image.
+bundle-build-community: bundle-community-k8s ## Run bundle community changes in CSV, and then build the bundle image.
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: container-build-community
