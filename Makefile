@@ -1,31 +1,31 @@
 ## Tool Versions
 
 # See https://github.com/kubernetes-sigs/kustomize for the last version
-KUSTOMIZE_VERSION ?= v5@v5.0.0
+KUSTOMIZE_VERSION ?= v5@v5.8.0
 # https://github.com/kubernetes-sigs/controller-tools/releases for the last version
-CONTROLLER_GEN_VERSION ?= v0.19.0
+CONTROLLER_GEN_VERSION ?= v0.20.0
 # See https://pkg.go.dev/sigs.k8s.io/controller-runtime/tools/setup-envtest?tab=versions for the last version
-ENVTEST_VERSION ?= v0.0.0-20250308055145-5fe7bb3edc86
+ENVTEST_VERSION ?= v0.0.0-20260120065648-aebc15d7c689
 # See https://pkg.go.dev/golang.org/x/tools/cmd/goimports?tab=versions for the last version
 GOIMPORTS_VERSION ?= v0.38.0
 # See https://github.com/onsi/ginkgo/releases for the last version
-GINKGO_VERSION ?= v2.26.0
+# TODO get rid of this, check other operators
+GINKGO_VERSION ?= v2.27.5
 # See github.com/operator-framework/operator-registry/releases for the last version
-OPM_VERSION ?= v1.60.0
+OPM_VERSION ?= v1.61.0
 # See github.com/operator-framework/operator-sdk/releases for the last version
-OPERATOR_SDK_VERSION ?= v1.32.0
-# GO_VERSION refers to the version of Golang to be downloaded when running dockerized version
-GO_VERSION = 1.24
+# heads up: 1.37 is the last version which supports go/v3!
+OPERATOR_SDK_VERSION = v1.37.0
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.34
 # See https://github.com/slintes/sort-imports/releases for the last version
 SORT_IMPORTS_VERSION = v0.3.0
 # OCP Version: for OKD bundle community
-OCP_VERSION ?= 4.16
+OCP_VERSION ?= 4.20
 # update for major version updates to YQ_VERSION! see https://github.com/mikefarah/yq
 # NOTE: v4.42.1 is the latest supporting go 1.20
 YQ_API_VERSION = v4
-YQ_VERSION = v4.48.1
+YQ_VERSION = v4.50.1
 
 BLUE_ICON_PATH = "./config/assets/nmo_blue_icon.png"
 
@@ -98,7 +98,6 @@ CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:$(IMAGE_TAG)
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):$(IMAGE_TAG)
 
-
 # BUNDLE_GEN_FLAGS are the flags passed to the operator-sdk generate bundle command
 BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 
@@ -120,19 +119,6 @@ endif
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
-
-# Run go in a container
-# --rm                                                          = remove container when stopped
-# -v $$(pwd):/home/go/src/github.com/medik8s/node-maintenance-operator = bind mount current dir in container
-# -u $$(id -u)                                                  = use current user (else new / modified files will be owned by root)
-# -w /home/go/src/github.com/medik8s/node-maintenance-operator         = working dir
-# -e ...                                                        = some env vars, especially set cache to a user writable dir
-# --entrypoint /bin bash ... -c                                 = run bash -c on start; that means the actual command(s) need be wrapped in double quotes, see e.g. check target which will run: bash -c "make test"
-export DOCKER_GO=docker run --rm -v $$(pwd):/home/go/src/github.com/medik8s/$(OPERATOR_NAME) \
-	-u $$(id -u) -w /home/go/src/github.com/medik8s/$(OPERATOR_NAME) \
-	-e "GOPATH=/go" -e "GOFLAGS=-mod=vendor" -e "XDG_CACHE_HOME=/tmp/.cache" \
-	-e "VERSION=$(VERSION)" -e "IMAGE_REGISTRY=$(IMAGE_REGISTRY)" \
-	--entrypoint /bin/bash golang:$(GO_VERSION) -c
 
 .PHONY: all
 all: build
@@ -286,7 +272,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
-docker-build: check ## Build docker image with the manager.
+docker-build: test ## Build docker image with the manager.
 	docker build -t ${IMG} .
 
 .PHONY: docker-push
@@ -484,17 +470,13 @@ catalog-push: ## Push a catalog image.
 test-scorecard: operator-sdk ## Run Scorecard testing for the bundle directory on OPERATOR_NAMESPACE
 	$(OPERATOR_SDK) scorecard ./bundle -n $(OPERATOR_NAMESPACE)
 
-.PHONY: check
-check: ## Dockerized version of make test
-	$(DOCKER_GO) "make test"
-
 .PHONY: verify-unchanged
 verify-unchanged: ## Verify there are no un-committed changes
 	./hack/verify-unchanged.sh
 
 .PHONY: container-build
-container-build: check ## Build containers
-	$(DOCKER_GO) "make bundle"
+container-build: test ## Build containers
+	make bundle
 	make docker-build bundle-build
 
 .PHONY: bundle-build-community

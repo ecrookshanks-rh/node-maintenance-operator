@@ -28,8 +28,7 @@ var _ = Describe("NodeMaintenance Validation", func() {
 			},
 		}
 		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(quorumNs), &corev1.Namespace{}); err != nil {
-			err := k8sClient.Create(context.Background(), quorumNs)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(k8sClient.Create(context.Background(), quorumNs)).To(Succeed())
 		}
 	})
 
@@ -39,7 +38,7 @@ var _ = Describe("NodeMaintenance Validation", func() {
 
 			It("should be rejected", func() {
 				nm := getTestNMO(nonExistingNodeName)
-				_, err := nm.ValidateCreate()
+				err := k8sClient.Create(context.Background(), nm)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring(ErrorNodeNotExists, nonExistingNodeName))
 			})
@@ -54,26 +53,21 @@ var _ = Describe("NodeMaintenance Validation", func() {
 			BeforeEach(func() {
 				// add a node and node maintenance CR to fake client
 				node = getTestNode(existingNodeName, false)
-				err := k8sClient.Create(context.Background(), node)
-				Expect(err).ToNot(HaveOccurred())
+				Expect(k8sClient.Create(context.Background(), node)).To(Succeed())
 
 				nmExisting = getTestNMO(existingNodeName)
-				err = k8sClient.Create(context.Background(), nmExisting)
-				Expect(err).ToNot(HaveOccurred())
+				Expect(k8sClient.Create(context.Background(), nmExisting)).To(Succeed())
 			})
 
 			AfterEach(func() {
-				err := k8sClient.Delete(context.Background(), node)
-				Expect(err).ToNot(HaveOccurred())
-
-				err = k8sClient.Delete(context.Background(), nmExisting)
-				Expect(err).ToNot(HaveOccurred())
+				Expect(k8sClient.Delete(context.Background(), node)).To(Succeed())
+				Expect(k8sClient.Delete(context.Background(), nmExisting)).To(Succeed())
 			})
 
 			It("should be rejected", func() {
 				nm := getTestNMO(existingNodeName)
 				Eventually(func() error {
-					_, err := nm.ValidateCreate()
+					err := k8sClient.Create(context.Background(), nm)
 					return err
 				}, time.Second, 200*time.Millisecond).Should(And(
 					HaveOccurred(),
@@ -89,13 +83,11 @@ var _ = Describe("NodeMaintenance Validation", func() {
 
 			BeforeEach(func() {
 				node = getTestNode(existingNodeName, true)
-				err := k8sClient.Create(context.Background(), node)
-				Expect(err).ToNot(HaveOccurred())
+				Expect(k8sClient.Create(context.Background(), node)).To(Succeed())
 			})
 
 			AfterEach(func() {
-				err := k8sClient.Delete(context.Background(), node)
-				Expect(err).ToNot(HaveOccurred())
+				Expect(k8sClient.Delete(context.Background(), node)).To(Succeed())
 			})
 
 			Context("with potential quorum violation", func() {
@@ -104,8 +96,8 @@ var _ = Describe("NodeMaintenance Validation", func() {
 					pdb := getTestPDB()
 					Expect(k8sClient.Create(context.Background(), pdb)).To(Succeed())
 					DeferCleanup(k8sClient.Delete, context.Background(), pdb)
-
 				})
+
 				When("node has etcd guard pod", func() {
 					var guardPod *corev1.Pod
 					BeforeEach(func() {
@@ -120,13 +112,13 @@ var _ = Describe("NodeMaintenance Validation", func() {
 						testGuardPod := &corev1.Pod{}
 						Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(guardPod), testGuardPod)).To(Succeed())
 						setPodConditionReady(context.Background(), testGuardPod, corev1.ConditionFalse)
-
 						nm := getTestNMO(existingNodeName)
-						Expect(nm.ValidateCreate()).Error().NotTo(HaveOccurred())
+						Expect(k8sClient.Create(context.Background(), nm)).Error().NotTo(HaveOccurred())
+						DeferCleanup(k8sClient.Delete, context.Background(), nm)
 					})
 					It("should be rejected if the pod is on True state", func() {
 						nm := getTestNMO(existingNodeName)
-						_, err := nm.ValidateCreate()
+						err := k8sClient.Create(context.Background(), nm)
 						Expect(err).To(HaveOccurred())
 						Expect(err.Error()).To(ContainSubstring(ErrorControlPlaneQuorumViolation, node.Name))
 					})
@@ -134,7 +126,8 @@ var _ = Describe("NodeMaintenance Validation", func() {
 				When("node doesn't have etcd guard pod", func() {
 					It("should be allowed", func() {
 						nm := getTestNMO(existingNodeName)
-						Expect(nm.ValidateCreate()).Error().NotTo(HaveOccurred())
+						Expect(k8sClient.Create(context.Background(), nm)).To(Succeed())
+						DeferCleanup(k8sClient.Delete, context.Background(), nm)
 					})
 				})
 			})
@@ -152,7 +145,8 @@ var _ = Describe("NodeMaintenance Validation", func() {
 
 				It("should be allowed", func() {
 					nm := getTestNMO(existingNodeName)
-					Expect(nm.ValidateCreate()).Error().NotTo(HaveOccurred())
+					Expect(k8sClient.Create(context.Background(), nm)).To(Succeed())
+					DeferCleanup(k8sClient.Delete, context.Background(), nm)
 				})
 			})
 
@@ -160,7 +154,7 @@ var _ = Describe("NodeMaintenance Validation", func() {
 
 				It("should be rejected", func() {
 					nm := getTestNMO(existingNodeName)
-					_, err := nm.ValidateCreate()
+					err := k8sClient.Create(context.Background(), nm)
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring(ErrorControlPlaneQuorumViolation, node.Name))
 				})
@@ -174,10 +168,23 @@ var _ = Describe("NodeMaintenance Validation", func() {
 
 		Context("with new nodeName", func() {
 
+			var node *corev1.Node
+
+			BeforeEach(func() {
+				node = getTestNode(existingNodeName, false)
+				Expect(k8sClient.Create(context.Background(), node)).To(Succeed())
+			})
+
+			AfterEach(func() {
+				Expect(k8sClient.Delete(context.Background(), node)).To(Succeed())
+			})
+
 			It("should be rejected", func() {
-				nmOld := getTestNMO(existingNodeName)
-				nm := getTestNMO("newNodeName")
-				_, err := nm.ValidateUpdate(nmOld)
+				nm := getTestNMO(existingNodeName)
+				Expect(k8sClient.Create(context.Background(), nm)).To(Succeed())
+				DeferCleanup(k8sClient.Delete, context.Background(), nm)
+				nm.Spec.NodeName = "new-node-name"
+				err := k8sClient.Update(context.Background(), nm)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring(ErrorNodeNameUpdateForbidden))
 			})
