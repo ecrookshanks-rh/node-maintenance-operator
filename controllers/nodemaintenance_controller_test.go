@@ -385,6 +385,55 @@ var _ = Describe("Node Maintenance", func() {
 				verifyEvent(corev1.EventTypeNormal, utils.EventReasonSucceedMaintenance, utils.EventMessageSucceedMaintenance)
 			})
 		})
+		When("nm CR is deleted and NMO finalizer is already removed", func() {
+			BeforeEach(func() {
+				nm = getTestNM("node-maintenance-cr-deletion-no-finalizer", taintedNodeName)
+				// Add a blocker finalizer to keep the NM alive after NMO removes its own
+				// finalizer during deletion. This forces repeated reconciles in the
+				// "deleting + no NMO finalizer" state — the exact edge case where the old
+				// code would fall through to normal reconcile and re-cordon the node.
+				nm.Finalizers = []string{"test/blocker"}
+				Expect(k8sClient.Create(ctx, nm)).To(Succeed())
+				DeferCleanup(func() {
+					maintenance := &v1beta1.NodeMaintenance{}
+					if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(nm), maintenance); err != nil {
+						return
+					}
+					maintenance.Finalizers = nil
+					_ = k8sClient.Update(ctx, maintenance)
+				})
+			})
+			It("should not re-apply maintenance to the node", func() {
+				By("Waiting for maintenance to succeed")
+				maintenance := &v1beta1.NodeMaintenance{}
+				Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(nm), maintenance)).To(Succeed())
+					g.Expect(maintenance.Status.Phase).To(Equal(v1beta1.MaintenanceSucceeded))
+				}, defaultTimeout, defaultInterval).Should(Succeed())
+
+				By("Deleting the nm CR — NMO will uncordon and remove its finalizer, but test/blocker keeps the object alive")
+				Expect(k8sClient.Delete(ctx, nm)).To(Succeed())
+
+				By("Waiting for NMO to process deletion and uncordon the node")
+				Eventually(func(g Gomega) {
+					node := &corev1.Node{}
+					g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: taintedNodeName}, node)).To(Succeed())
+					g.Expect(node.Spec.Unschedulable).To(BeFalse())
+				}, defaultTimeout, defaultInterval).Should(Succeed())
+
+				By("Verifying NMO finalizer was removed but NM still exists due to blocker")
+				Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(nm), maintenance)).To(Succeed())
+				Expect(maintenance.Finalizers).To(Equal([]string{"test/blocker"}))
+
+				By("Verifying node stays uncordoned — no rogue reconcile re-applies maintenance")
+				Consistently(func(g Gomega) {
+					node := &corev1.Node{}
+					g.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: taintedNodeName}, node)).To(Succeed())
+					g.Expect(node.Spec.Unschedulable).To(BeFalse())
+					g.Expect(isTaintExist(node, medik8sDrainTaint.Key, corev1.TaintEffectNoSchedule)).To(BeFalse())
+				}, 2*time.Second, defaultInterval).Should(Succeed())
+			})
+		})
 		When("lease is permanently lost during maintenance", func() {
 			BeforeEach(func() {
 				originalLeaseManager := r.LeaseManager

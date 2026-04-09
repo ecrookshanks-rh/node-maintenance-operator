@@ -127,7 +127,31 @@ func (r *NodeMaintenanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return emptyResult, err
 	}
 
-	if !controllerutil.ContainsFinalizer(nm, v1beta1.NodeMaintenanceFinalizer) && nm.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !nm.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is being deleted
+		r.logger.Info("Deletion timestamp not zero")
+
+		if controllerutil.ContainsFinalizer(nm, v1beta1.NodeMaintenanceFinalizer) {
+			// Stop node maintenance - uncordon and remove live migration taint from the node.
+			if err := r.stopNodeMaintenanceOnDeletion(ctx, drainer, nm.Spec.NodeName); err != nil {
+				r.logger.Error(err, "error stopping node maintenance")
+				if !apiErrors.IsNotFound(err) {
+					return r.onReconcileError(ctx, nm, drainer, err)
+				}
+			}
+
+			// Remove finalizer
+			controllerutil.RemoveFinalizer(nm, v1beta1.NodeMaintenanceFinalizer)
+			if err := r.Client.Update(ctx, nm); err != nil {
+				return r.onReconcileError(ctx, nm, drainer, err)
+			}
+			// end maintenance on removing finalizer, taints, and node is already uncordoned
+			utils.NormalEvent(r.Recorder, nm, utils.EventReasonRemovedMaintenance, utils.EventMessageRemovedMaintenance)
+		}
+		return emptyResult, nil
+	}
+
+	if !controllerutil.ContainsFinalizer(nm, v1beta1.NodeMaintenanceFinalizer) {
 		// Add finalizer when object is created
 		controllerutil.AddFinalizer(nm, v1beta1.NodeMaintenanceFinalizer)
 		if err := r.Client.Update(ctx, nm); err != nil {
@@ -135,26 +159,6 @@ func (r *NodeMaintenanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 		// begin maintenance on adding finalizer
 		utils.NormalEvent(r.Recorder, nm, utils.EventReasonBeginMaintenance, utils.EventMessageBeginMaintenance)
-	} else if controllerutil.ContainsFinalizer(nm, v1beta1.NodeMaintenanceFinalizer) && !nm.ObjectMeta.DeletionTimestamp.IsZero() {
-		// The object is being deleted
-		r.logger.Info("Deletion timestamp not zero")
-
-		// Stop node maintenance - uncordon and remove live migration taint from the node.
-		if err := r.stopNodeMaintenanceOnDeletion(ctx, drainer, nm.Spec.NodeName); err != nil {
-			r.logger.Error(err, "error stopping node maintenance")
-			if !apiErrors.IsNotFound(err) {
-				return r.onReconcileError(ctx, nm, drainer, err)
-			}
-		}
-
-		// Remove finalizer
-		controllerutil.RemoveFinalizer(nm, v1beta1.NodeMaintenanceFinalizer)
-		if err := r.Client.Update(ctx, nm); err != nil {
-			return r.onReconcileError(ctx, nm, drainer, err)
-		}
-		// end maintenance on removing finalizer, taints, and node is already uncordoned
-		utils.NormalEvent(r.Recorder, nm, utils.EventReasonRemovedMaintenance, utils.EventMessageRemovedMaintenance)
-		return emptyResult, nil
 	}
 
 	needUpdate, err := initMaintenanceStatus(ctx, nm, drainer)
